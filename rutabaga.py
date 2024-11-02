@@ -15,7 +15,6 @@ About:
   Rutabaga intended for use in penetration testing 
   and should only be used for legitimate purposes.
   
-  
 usage: rutabaga.py -d domain.com -s f -m $f_$l$l -o save.txt
 
 Mask parameters:
