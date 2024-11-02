@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser(
     description=textwrap.dedent('''
    __       ___       __        __         _\|/_ 
   |__) |  |  |   /\\  |__)  /\\  / _`  /\\   (     )
-  |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-.-'
+  |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-,-'
   
 About:  
   Email address and login generator
