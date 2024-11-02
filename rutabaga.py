@@ -6,9 +6,9 @@ import re
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
     description=textwrap.dedent('''
-   __       ___       __        __       
-  |__) |  |  |   /\\  |__)  /\\  / _`  /\\  
-  |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\ 
+   __       ___       __        __         _\|/_ 
+  |__) |  |  |   /\\  |__)  /\\  / _`  /\\   (     )
+  |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-.-'
   
 About:  
   Email address and login generator
