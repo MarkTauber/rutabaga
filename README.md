@@ -7,8 +7,8 @@
 `--mask` единственный обязательный параметр<br />
 Для вызова помощи: `rutabaga.py -h` <br />
 Генерация "Фамилия_Инициалы@mail.com":<br />
-`rutaba.py --mask $f_$l$l --domain mail.com --sex f --output save.txt`<br />
-`rutaba.py -m $f_$l$l -d mail.com -s m -o save.txt`<br />
+`rutabaga.py --mask $f_$l$l --domain mail.com --sex f --output save.txt`<br />
+`rutabaga.py -m $f_$l$l -d mail.com -s m -o save.txt`<br />
 
 **Параметры маски:**<br />
 `$f` — Фамилия<br />
