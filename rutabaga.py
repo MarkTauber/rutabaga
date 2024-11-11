@@ -6,7 +6,7 @@ import datetime
 import os
 import re
 
-#TODO
+# TODO
 # ? разделить йотированные и обычные вариации ФИО
 #
 
@@ -14,7 +14,8 @@ os.system("cls")
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
-    description=textwrap.dedent('''   __       ___       __        __         _\\|/_ 
+    description=textwrap.dedent(
+        """   __       ___       __        __         _\\|/_ 
   |__) |  |  |   /\\  |__)  /\\  / _`  /\\   (     )
   |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-,-'
   
@@ -32,7 +33,8 @@ Mask parameters:
 Gender parameters (optional):
   m - Male
   f - Female
-        ''')
+        """
+    ),
 )
 
 # Аргументы
@@ -40,11 +42,11 @@ parser.add_argument("-m", "--mask", type=str, required=True)
 parser.add_argument("-d", "--domain", type=str, required=False, metavar="DOMAIN")
 parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
 parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
-parser.add_argument("-i", "--iotized", type=str, required=False, metavar="")
+parser.add_argument("-i", "--iotized", required=False, action="store_const", const=True, default=False)
 parser.add_argument("-t", "--threads", type=int, default=4)
 
 args = parser.parse_args()
-time = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
+time = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 dom = ""
 
 if args.domain:
@@ -55,39 +57,96 @@ if args.domain:
 
 # Йотированные буквы (Е Ё Ю Я)
 if args.iotized:
-    symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "ye", "ya", "yu", "yo", "w", "q"]
+    symbols = [
+        "a",
+        "e",
+        "r",
+        "t",
+        "y",
+        "u",
+        "i",
+        "o",
+        "p",
+        "s",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "z",
+        "c",
+        "v",
+        "b",
+        "n",
+        "m",
+        "ye",
+        "ya",
+        "yu",
+        "yo",
+        "w",
+        "q",
+    ]
 else:
-    symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "w", "q"]
-    
+    symbols = [
+        "a",
+        "e",
+        "r",
+        "t",
+        "y",
+        "u",
+        "i",
+        "o",
+        "p",
+        "s",
+        "d",
+        "f",
+        "g",
+        "h",
+        "j",
+        "k",
+        "l",
+        "z",
+        "c",
+        "v",
+        "b",
+        "n",
+        "m",
+        "w",
+        "q",
+    ]
+
+
 # Загружаем данные из файлов
 def load_data(sex=None):
     if sex == "m":
-        with open('.\\Data_M\\Familias_M.txt', 'r') as file:
+        with open(".\\Data_M\\Familias_M.txt", "r") as file:
             familias = [line.strip() for line in file]
-        with open('.\\Data_M\\Names_M.txt', 'r') as file:
+        with open(".\\Data_M\\Names_M.txt", "r") as file:
             names = [line.strip() for line in file]
-        with open('.\\Data_M\\Surnames_M.txt', 'r') as file:
+        with open(".\\Data_M\\Surnames_M.txt", "r") as file:
             surnames = [line.strip() for line in file]
     elif sex == "f":
-        with open('.\\Data_F\\Familias_F.txt', 'r') as file:
+        with open(".\\Data_F\\Familias_F.txt", "r") as file:
             familias = [line.strip() for line in file]
-        with open('.\\Data_F\\Names_F.txt', 'r') as file:
+        with open(".\\Data_F\\Names_F.txt", "r") as file:
             names = [line.strip() for line in file]
-        with open('.\\Data_F\\Surnames_F.txt', 'r') as file:
+        with open(".\\Data_F\\Surnames_F.txt", "r") as file:
             surnames = [line.strip() for line in file]
     else:  # Если sex не задан, используем оба пола
-        with open('.\\Data_M\\Familias_M.txt', 'r') as file:
+        with open(".\\Data_M\\Familias_M.txt", "r") as file:
             familias_m = [line.strip() for line in file]
-        with open('.\\Data_M\\Names_M.txt', 'r') as file:
+        with open(".\\Data_M\\Names_M.txt", "r") as file:
             names_m = [line.strip() for line in file]
-        with open('.\\Data_M\\Surnames_M.txt', 'r') as file:
+        with open(".\\Data_M\\Surnames_M.txt", "r") as file:
             surnames_m = [line.strip() for line in file]
 
-        with open('.\\Data_F\\Familias_F.txt', 'r') as file:
+        with open(".\\Data_F\\Familias_F.txt", "r") as file:
             familias_f = [line.strip() for line in file]
-        with open('.\\Data_F\\Names_F.txt', 'r') as file:
+        with open(".\\Data_F\\Names_F.txt", "r") as file:
             names_f = [line.strip() for line in file]
-        with open('.\\Data_F\\Surnames_F.txt', 'r') as file:
+        with open(".\\Data_F\\Surnames_F.txt", "r") as file:
             surnames_f = [line.strip() for line in file]
 
         familias = familias_m + familias_f
@@ -95,27 +154,24 @@ def load_data(sex=None):
         surnames = surnames_m + surnames_f
     return familias, names, surnames
 
+
 # Получаем шаблон от пользователя
 template = args.mask
 # Разбиваем шаблон на части, учитывая символы после $
-parts = re.split(r'\$([a-z]+)', template)
+parts = re.split(r"\$([a-z]+)", template)
 
 # Используем множество для хранения уникальных логинов
 unique_logins = set()
 lock = threading.Lock()
 
+
 def generate_and_write(sex, file):
     # Создаем локальный словарь для каждого потока
-    data = {
-        'f': [],
-        'i': [],
-        'o': [],
-        'l': symbols
-    }
+    data = {"f": [], "i": [], "o": [], "l": symbols}
     familias, names, surnames = load_data(sex)
-    data['f'] = familias
-    data['i'] = names
-    data['o'] = surnames
+    data["f"] = familias
+    data["i"] = names
+    data["o"] = surnames
     variants = []
     for i, part in enumerate(parts):
         if i % 2 == 1:  # Если индекс нечетный - это плейсхолдер
@@ -129,23 +185,25 @@ def generate_and_write(sex, file):
             variants.append([part])
     for combination in itertools.product(*variants):
         # Соединяем части в логин
-        login = ''.join(combination) + dom
+        login = "".join(combination) + dom
         # Проверяем, есть ли логин в множестве
         with lock:
             if login not in unique_logins:
                 # Если логина нет, добавляем его в множество
                 unique_logins.add(login)
                 print(login)
-                file.write(login+'\n')
+                file.write(login + "\n")
+
 
 def worker(sex, file):
     generate_and_write(sex, file)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     threads = []
     if args.output:
         try:
-            with open(args.output, 'a') as filezx:
+            with open(args.output, "a") as filezx:
                 if args.sex == "m":
                     for _ in range(args.threads):
                         thread = threading.Thread(target=worker, args=("m", filezx))
@@ -170,11 +228,11 @@ if __name__ == '__main__':
         except FileNotFoundError:
             print(f"ERROR: cant create '{args.output}' or something.")
         except PermissionError:
-            print(f"ERROR: No access to '{args.output}'.")     
-        
+            print(f"ERROR: No access to '{args.output}'.")
+
     else:
         # Цикл по всем комбинациям
-        with open(f"rutabaga_[{time}].txt", 'a') as filezx:
+        with open(f"rutabaga_[{time}].txt", "a") as filezx:
             if args.sex == "m":
                 for _ in range(args.threads):
                     thread = threading.Thread(target=worker, args=("m", filezx))
@@ -196,5 +254,5 @@ if __name__ == '__main__':
                     thread.start()
             for thread in threads:
                 thread.join()
-    
+
     print(f"\nrutabaga_[{time}].txt \n\nLogins generated: {len(unique_logins)}")
