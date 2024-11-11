@@ -35,7 +35,7 @@ Gender parameters (optional):
 )
 
 # Аргументы
-parser.add_argument("-m", "--mask", type=str, choices=["$f", "$i", "$o", "$l"], required=True)
+parser.add_argument("-m", "--mask", type=str, required=True)
 parser.add_argument("-d", "--domain", type=str, required=False, metavar="DOMAIN")
 parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
 parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
