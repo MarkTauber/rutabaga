@@ -2,13 +2,12 @@ import itertools
 import threading
 import argparse
 import textwrap
+import datetime
 import os
 import re
 
 #TODO
-# - переделать имя файла вывода по умолчанию
 # ? разделить йотированные и обычные вариации ФИО
-# ! проследить за потоками
 #
 
 os.system("cls")
@@ -43,8 +42,9 @@ parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
 parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
 parser.add_argument("-i", "--iotized", type=str, required=False, metavar="")
 parser.add_argument("-t", "--threads", type=int, default=4)
-args = parser.parse_args()
 
+args = parser.parse_args()
+time = datetime.datetime.now().strftime('%Y.%m.%d_%H.%M.%S')
 dom = ""
 
 if args.domain:
@@ -174,7 +174,7 @@ if __name__ == '__main__':
         
     else:
         # Цикл по всем комбинациям
-        with open('work.txt', 'a') as filezx:
+        with open(f"rutabaga_[{time}].txt", 'a') as filezx:
             if args.sex == "m":
                 for _ in range(args.threads):
                     thread = threading.Thread(target=worker, args=("m", filezx))
@@ -196,4 +196,5 @@ if __name__ == '__main__':
                     thread.start()
             for thread in threads:
                 thread.join()
-    print(f"\nLogins generated: {len(unique_logins)}")
+    
+    print(f"\nrutabaga_[{time}].txt \n\nLogins generated: {len(unique_logins)}")
