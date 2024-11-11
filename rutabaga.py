@@ -1,13 +1,15 @@
+import itertools
+import threading
+import argparse
+import textwrap
+import os
+import re
+
 #TODO
 # - переделать имя файла вывода по умолчанию
 # ? разделить йотированные и обычные вариации ФИО
-# 
-
-import itertools
-import argparse
-import textwrap
-import re
-import os
+# ! проследить за потоками
+#
 
 os.system("cls")
 
@@ -40,6 +42,7 @@ parser.add_argument("-d", "--domain", type=str, required=False, metavar="DOMAIN"
 parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
 parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
 parser.add_argument("-i", "--iotized", type=str, required=False, metavar="")
+parser.add_argument("-t", "--threads", type=int, default=4)
 args = parser.parse_args()
 
 dom = ""
@@ -55,7 +58,7 @@ if args.iotized:
     symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "ye", "ya", "yu", "yo", "w", "q"]
 else:
     symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "w", "q"]
-
+    
 # Загружаем данные из файлов
 def load_data(sex=None):
     if sex == "m":
@@ -94,21 +97,21 @@ def load_data(sex=None):
 
 # Получаем шаблон от пользователя
 template = args.mask
-
 # Разбиваем шаблон на части, учитывая символы после $
 parts = re.split(r'\$([a-z]+)', template)
 
-# Словарь для хранения данных по каждому плейсхолдеру
-data = {
-    'f': [],
-    'i': [],
-    'o': [],
-    'l': symbols
-}
+# Используем множество для хранения уникальных логинов
+unique_logins = set()
+lock = threading.Lock()
 
-# Генерируем все возможные варианты для каждой части
-def generate_variants(sex=None):
-    global data
+def generate_and_write(sex, file):
+    # Создаем локальный словарь для каждого потока
+    data = {
+        'f': [],
+        'i': [],
+        'o': [],
+        'l': symbols
+    }
     familias, names, surnames = load_data(sex)
     data['f'] = familias
     data['i'] = names
@@ -124,50 +127,73 @@ def generate_variants(sex=None):
                 variants.append([part])
         else:  # Если индекс четный - это обычный текст
             variants.append([part])
-    return variants
-
-# Используем множество для хранения уникальных логинов
-unique_logins = set()
-
-def generate_and_write(sex, file):
-    variants = generate_variants(sex)
     for combination in itertools.product(*variants):
         # Соединяем части в логин
         login = ''.join(combination) + dom
         # Проверяем, есть ли логин в множестве
-        if login not in unique_logins:
-            # Если логина нет, добавляем его в множество
-            unique_logins.add(login)
-            print(login)
-            file.write(login+'\n')
+        with lock:
+            if login not in unique_logins:
+                # Если логина нет, добавляем его в множество
+                unique_logins.add(login)
+                print(login)
+                file.write(login+'\n')
 
-# Запись в выбранный файл -о 
-if args.output:
-    try:
-        with open(args.output, 'a') as filezx:
-            if args.sex == "m":
-                generate_and_write("m", filezx)
-            elif args.sex == "f":
-                generate_and_write("f", filezx)
-            else:  # Если sex не задан, генерируем для обоих полов
-                generate_and_write("m", filezx)
-                generate_and_write("f", filezx)
-    except FileNotFoundError:
-        print(f"ERROR: cant create '{args.output}' or something.")
-    except PermissionError:
-        print(f"ERROR: No access to '{args.output}'.")     
+def worker(sex, file):
+    generate_and_write(sex, file)
+
+if __name__ == '__main__':
+    threads = []
+    if args.output:
+        try:
+            with open(args.output, 'a') as filezx:
+                if args.sex == "m":
+                    for _ in range(args.threads):
+                        thread = threading.Thread(target=worker, args=("m", filezx))
+                        threads.append(thread)
+                        thread.start()
+                elif args.sex == "f":
+                    for _ in range(args.threads):
+                        thread = threading.Thread(target=worker, args=("f", filezx))
+                        threads.append(thread)
+                        thread.start()
+                else:  # Если sex не задан, генерируем для обоих полов
+                    for _ in range(args.threads):
+                        thread = threading.Thread(target=worker, args=("m", filezx))
+                        threads.append(thread)
+                        thread.start()
+                    for _ in range(args.threads):
+                        thread = threading.Thread(target=worker, args=("f", filezx))
+                        threads.append(thread)
+                        thread.start()
+                for thread in threads:
+                    thread.join()
+        except FileNotFoundError:
+            print(f"ERROR: cant create '{args.output}' or something.")
+        except PermissionError:
+            print(f"ERROR: No access to '{args.output}'.")     
         
-# Запись в темп work.txt
-else:
-    # Цикл по всем комбинациям
-    with open('work.txt', 'a') as filezx:
-        if args.sex == "m":
-            generate_and_write("m", filezx)
-        elif args.sex == "f":
-            generate_and_write("f", filezx)
-        else:  # Если sex не задан, генерируем для обоих полов
-            generate_and_write("m", filezx)
-            generate_and_write("f", filezx)
-
-# Вывод результата
-print(f"\nLogins generated: {len(unique_logins)}")
+    else:
+        # Цикл по всем комбинациям
+        with open('work.txt', 'a') as filezx:
+            if args.sex == "m":
+                for _ in range(args.threads):
+                    thread = threading.Thread(target=worker, args=("m", filezx))
+                    threads.append(thread)
+                    thread.start()
+            elif args.sex == "f":
+                for _ in range(args.threads):
+                    thread = threading.Thread(target=worker, args=("f", filezx))
+                    threads.append(thread)
+                    thread.start()
+            else:  # Если sex не задан, генерируем для обоих полов
+                for _ in range(args.threads):
+                    thread = threading.Thread(target=worker, args=("m", filezx))
+                    threads.append(thread)
+                    thread.start()
+                for _ in range(args.threads):
+                    thread = threading.Thread(target=worker, args=("f", filezx))
+                    threads.append(thread)
+                    thread.start()
+            for thread in threads:
+                thread.join()
+    print(f"\nLogins generated: {len(unique_logins)}")
