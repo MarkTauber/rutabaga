@@ -1,21 +1,26 @@
+#TODO
+# - переделать имя файла вывода по умолчанию
+# ? разделить йотированные и обычные вариации ФИО
+# 
+
 import itertools
 import argparse
 import textwrap
 import re
+import os
+
+os.system("cls")
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
-    description=textwrap.dedent('''
-   __       ___       __        __         _\|/_ 
+    description=textwrap.dedent('''   __       ___       __        __         _\\|/_ 
   |__) |  |  |   /\\  |__)  /\\  / _`  /\\   (     )
   |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-,-'
   
-About:  
-  Email address and login generator
-  Rutabaga intended for use in penetration testing 
-  and should only be used for legitimate purposes.
+  Email address and login generator.
   
-usage: rutabaga.py -d domain.com -s f -m $f_$l$l -o save.txt
+example: 
+  rutabaga.py -d domain.com -s f -m $f_$l$l -o save.txt
 
 Mask parameters:
   $f - Last name
@@ -29,10 +34,12 @@ Gender parameters (optional):
         ''')
 )
 
+# Аргументы
+parser.add_argument("-m", "--mask", type=str, choices=["$f", "$i", "$o", "$l"], required=True)
 parser.add_argument("-d", "--domain", type=str, required=False, metavar="DOMAIN")
-parser.add_argument("-m", "--mask", type=str, required=True, metavar="$mask")
 parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
 parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
+parser.add_argument("-i", "--iotized", type=str, required=False, metavar="")
 args = parser.parse_args()
 
 dom = ""
@@ -43,7 +50,11 @@ if args.domain:
         if "@" not in dom:
             dom = "@" + dom
 
-symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "ye", "ya", "yu", "yo", "w", "q"]
+# Йотированные буквы (Е Ё Ю Я)
+if args.iotized:
+    symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "ye", "ya", "yu", "yo", "w", "q"]
+else:
+    symbols = ["a", "e", "r", "t", "y", "u", "i", "o", "p", "s", "d", "f", "g", "h", "j", "k", "l", "z", "c", "v", "b", "n", "m", "w", "q"]
 
 # Загружаем данные из файлов
 def load_data(sex=None):
@@ -130,6 +141,7 @@ def generate_and_write(sex, file):
             print(login)
             file.write(login+'\n')
 
+# Запись в выбранный файл -о 
 if args.output:
     try:
         with open(args.output, 'a') as filezx:
@@ -145,6 +157,7 @@ if args.output:
     except PermissionError:
         print(f"ERROR: No access to '{args.output}'.")     
         
+# Запись в темп work.txt
 else:
     # Цикл по всем комбинациям
     with open('work.txt', 'a') as filezx:
