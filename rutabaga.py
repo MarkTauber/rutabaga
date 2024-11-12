@@ -57,7 +57,12 @@ args = parser.parse_args()
 time = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 dom = ""
 
-iotized_symbols = ["ye", "ya", "yu", "yo"]  # Йотированные буквы (Е Ё Ю Я)
+iotized_symbols = [
+    "ye", 
+    "ya", 
+    "yu", 
+    "yo",
+]  # Йотированные буквы (Е Ё Ю Я)
 
 symbols = [
     "a",
