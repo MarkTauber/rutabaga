@@ -166,11 +166,17 @@ def load_data(sex=None):
         path = None
 
     if path:
-        with open(path + "Familias_" + sex + ".txt", "r", encoding="UTF-8") as file:
+        with open(
+            path + "Familias_" + sex + ".txt", "r", encoding="UTF-8"
+        ) as file:
             familias = [line.strip() for line in file]
-        with open(path + "Names_" + sex + ".txt", "r", encoding="UTF-8") as file:
+        with open(
+            path + "Names_" + sex + ".txt", "r", encoding="UTF-8"
+        ) as file:
             names = [line.strip() for line in file]
-        with open(path + "Surnames_" + sex + ".txt", "r", encoding="UTF-8") as file:
+        with open(
+            path + "Surnames_" + sex + ".txt", "r", encoding="UTF-8"
+        ) as file:
             surnames = [line.strip() for line in file]
     else:
         familias = []
