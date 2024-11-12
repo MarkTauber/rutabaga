@@ -50,10 +50,9 @@ time = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 dom = ""
 
 if args.domain:
-    dom = args.domain
-    if dom != "":
-        if "@" not in dom:
-            dom = "@" + dom
+    dom = args.domain.strip()
+    if dom and "@" not in dom:
+        dom = "@" + dom
 
 # Йотированные буквы (Е Ё Ю Я)
 if args.iotized:
