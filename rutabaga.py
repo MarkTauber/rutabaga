@@ -39,10 +39,47 @@ Gender parameters (optional):
 )
 
 # Аргументы
-parser.add_argument("-m", "--mask", type=str, required=True)
-parser.add_argument("-d", "--domain", type=str, required=False, metavar="DOMAIN")
-parser.add_argument("-o", "--output", type=str, required=False, metavar="PATH")
-parser.add_argument("-s", "--sex", type=str, choices=["m", "f"], required=False)
+# Маска
+parser.add_argument(
+    "-m", 
+    "--mask", 
+    type=str, 
+    required=True,
+)
+
+# Домен почты
+parser.add_argument(
+    "-d", 
+    "--domain", 
+    type=str, 
+    required=False, 
+    metavar="DOMAIN",
+)
+
+# Файл вывода
+parser.add_argument(
+    "-o", 
+    "--output", 
+    type=str, 
+    required=False, 
+    metavar="PATH",
+)
+
+# Пол
+parser.add_argument(
+    "-s", 
+    "--sex", 
+    type=str, 
+    
+    choices=[
+    "m",  # Мужской
+    "f",  # Женский
+    ], 
+    
+    required=False,
+)
+
+# Йотированные буквы в инициалах
 parser.add_argument(
     "-i",
     "--iotized",
@@ -51,7 +88,14 @@ parser.add_argument(
     const=True,
     default=False,
 )
-parser.add_argument("-t", "--threads", type=int, default=4)
+
+# Потоки
+parser.add_argument(
+    "-t", 
+    "--threads", 
+    type=int, 
+    default=4,
+)
 
 args = parser.parse_args()
 time = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
@@ -206,4 +250,4 @@ if __name__ == "__main__":
     except PermissionError:
         print(f"ERROR: No access to '{output_file}'.")
 
-    print(f"\nrutabaga_[{time}].txt \n\nLogins generated: {len(unique_logins)}")
+    print(f"\n{output_file} \n\nLogins generated: {len(unique_logins)}")
