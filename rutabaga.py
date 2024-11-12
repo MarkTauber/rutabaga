@@ -1,14 +1,11 @@
 import argparse
 import itertools
+import sys
 import os
 import re
 import threading
 from datetime import datetime
 import textwrap
-
-# TODO
-# ? разделить йотированные и обычные вариации ФИО
-#
 
 if __name__ == "__main__":
     os.system("cls")
@@ -97,7 +94,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 time = datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
-dom = ""
+DOM = ""
 
 iotized_symbols = [
     "ye",
@@ -136,9 +133,9 @@ symbols = [
 
 
 if args.domain:
-    dom = args.domain.strip()
-    if dom and "@" not in dom:
-        dom = "@" + dom
+    DOM = args.domain.strip()
+    if DOM and "@" not in DOM:
+        DOM = "@" + DOM
 
 
 if args.iotized:
@@ -147,6 +144,20 @@ if args.iotized:
 
 # Загружаем данные из файлов
 def load_data(sex=None):
+    """Загружает данные о фамилиях, именах и отчествах из файлов.
+
+    Загружает данные о фамилиях, именах и отчествах из файлов,
+    расположенных в подкаталогах Data_M и Data_F,
+    в зависимости от переданного параметра sex.
+
+    Args:
+        sex (str, optional): Пол ("m" или "f"). Если не указан,
+            загружаются данные для обоих полов.  По умолчанию None.
+
+    Returns:
+        tuple: Кортеж из трех списков: фамилий, имен и отчеств.
+               Возвращает пустые списки, если файлы не найдены.
+    """
     if sex == "m":
         path = ".\\Data_M\\"
     elif sex == "f":
@@ -155,22 +166,28 @@ def load_data(sex=None):
         path = None
 
     if path:
-        with open(path + "Familias_" + sex + ".txt", "r") as file:
+        with open(path + "Familias_" + sex + ".txt", "r", encoding="UTF-8") as file:
             familias = [line.strip() for line in file]
-        with open(path + "Names_" + sex + ".txt", "r") as file:
+        with open(path + "Names_" + sex + ".txt", "r", encoding="UTF-8") as file:
             names = [line.strip() for line in file]
-        with open(path + "Surnames_" + sex + ".txt", "r") as file:
+        with open(path + "Surnames_" + sex + ".txt", "r", encoding="UTF-8") as file:
             surnames = [line.strip() for line in file]
     else:
         familias = []
         names = []
         surnames = []
         for gender in ("M", "F"):
-            with open(f".\\Data_{gender}\\Familias_{gender}.txt", "r") as file:
+            with open(
+                f".\\Data_{gender}\\Familias_{gender}.txt", "r", encoding="UTF-8"
+            ) as file:
                 familias.extend([line.strip() for line in file])
-            with open(f".\\Data_{gender}\\Names_{gender}.txt", "r") as file:
+            with open(
+                f".\\Data_{gender}\\Names_{gender}.txt", "r", encoding="UTF-8"
+            ) as file:
                 names.extend([line.strip() for line in file])
-            with open(f".\\Data_{gender}\\Surnames_{gender}.txt", "r") as file:
+            with open(
+                f".\\Data_{gender}\\Surnames_{gender}.txt", "r", encoding="UTF-8"
+            ) as file:
                 surnames.extend([line.strip() for line in file])
 
     return familias, names, surnames
@@ -181,8 +198,7 @@ template = args.mask
 
 # Проверка на валидность шаблона
 if "$" not in template:
-    print("Ошибка: Шаблон должен содержать хотя бы одну переменную.")
-    exit(1)
+    sys.exit("Ошибка: Шаблон должен содержать хотя бы одну переменную.")
 
 # Разбиваем шаблон на части, учитывая символы после $
 parts = re.split(r"\$([a-z]+)", template)
@@ -193,6 +209,15 @@ lock = threading.Lock()
 
 
 def generate_and_write(sex, file):
+    """Генерирует и записывает уникальные логины в файл.
+
+    Генерирует уникальные логины, используя данные о фамилиях,
+    именах, отчествах и символах, и записывает их в файл.
+
+    Args:
+        sex (str): Пол ("m" или "f"), используемый для загрузки данных.
+        file (file object): Открытый файл для записи сгенерированных логинов.
+    """
     # Создаем локальный словарь для каждого потока
     data = {
         "f": [],
@@ -217,7 +242,7 @@ def generate_and_write(sex, file):
             variants.append([part])
     for combination in itertools.product(*variants):
         # Соединяем части в логин
-        login = "".join(combination) + dom
+        login = "".join(combination) + DOM
         # Проверяем, есть ли логин в множестве
         with lock:
             if login not in unique_logins:
@@ -228,6 +253,15 @@ def generate_and_write(sex, file):
 
 
 def worker(sex, file):
+    """Запускает генерацию и запись уникальных логинов для заданного пола.
+
+    Функция-обертка, которая запускает генерацию и запись уникальных логинов
+    в файл с помощью функции `generate_and_write` для указанного пола.
+
+    Args:
+        sex (str): Пол ("m" или "f"), используемый для загрузки данных.
+        file (file object): Открытый файл для записи сгенерированных логинов.
+    """
     generate_and_write(sex, file)
 
 
@@ -235,7 +269,7 @@ if __name__ == "__main__":
     threads = []
     output_file = args.output or f"rutabaga_[{time}].txt"
     try:
-        with open(output_file, "a") as filezx:
+        with open(output_file, "a", encoding="UTF-8") as filezx:
             for sex in args.sex or ["m", "f"]:
                 for _ in range(args.threads):
                     thread = threading.Thread(target=worker, args=(sex, filezx))
