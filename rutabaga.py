@@ -1,17 +1,17 @@
-import itertools
-import threading
 import argparse
-import textwrap
-import datetime
+import itertools
 import os
 import re
+import threading
+from datetime import datetime
+import textwrap
 
 # TODO
 # ? разделить йотированные и обычные вариации ФИО
 #
 
-if __name__ == '__main__':
-    os.system("cls") 
+if __name__ == "__main__":
+    os.system("cls")
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.RawTextHelpFormatter,
@@ -41,41 +41,39 @@ Gender parameters (optional):
 # Аргументы
 # Маска
 parser.add_argument(
-    "-m", 
-    "--mask", 
-    type=str, 
+    "-m",
+    "--mask",
+    type=str,
     required=True,
 )
 
 # Домен почты
 parser.add_argument(
-    "-d", 
-    "--domain", 
-    type=str, 
-    required=False, 
+    "-d",
+    "--domain",
+    type=str,
+    required=False,
     metavar="DOMAIN",
 )
 
 # Файл вывода
 parser.add_argument(
-    "-o", 
-    "--output", 
-    type=str, 
-    required=False, 
+    "-o",
+    "--output",
+    type=str,
+    required=False,
     metavar="PATH",
 )
 
 # Пол
 parser.add_argument(
-    "-s", 
-    "--sex", 
-    type=str, 
-    
+    "-s",
+    "--sex",
+    type=str,
     choices=[
-    "m",  # Мужской
-    "f",  # Женский
-    ], 
-    
+        "m",  # Мужской
+        "f",  # Женский
+    ],
     required=False,
 )
 
@@ -91,20 +89,20 @@ parser.add_argument(
 
 # Потоки
 parser.add_argument(
-    "-t", 
-    "--threads", 
-    type=int, 
+    "-t",
+    "--threads",
+    type=int,
     default=4,
 )
 
 args = parser.parse_args()
-time = datetime.datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
+time = datetime.now().strftime("%Y.%m.%d_%H.%M.%S")
 dom = ""
 
 iotized_symbols = [
-    "ye", 
-    "ya", 
-    "yu", 
+    "ye",
+    "ya",
+    "yu",
     "yo",
 ]  # Йотированные буквы (Е Ё Ю Я)
 
