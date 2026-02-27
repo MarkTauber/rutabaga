@@ -1,0 +1,14 @@
+it
+hr
+fin
+adm
+ceo
+sales
+legal
+dev
+support
+qa
+ops
+security
+marketing
+accounting
