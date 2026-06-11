@@ -11,7 +11,13 @@ from .mask import parse_mask, MaskError, PlaceholderToken, RESERVED_PLACEHOLDERS
 from .data_loader import load_data
 from .generator import generate_logins
 from .output_paths import resolve_normal_output, resolve_validate_outputs
-from .validate import DEFAULT_SENDER, DEFAULT_WORKERS, validate_stream
+from .validate import (
+    DEFAULT_HELO,
+    DEFAULT_SENDER,
+    DEFAULT_WORKERS,
+    normalize_validate_methods,
+    validate_stream,
+)
 
 
 ASCII_BANNER = textwrap.dedent(
@@ -85,7 +91,7 @@ Quick examples:
         required=False,
         metavar="PATH",
         help="Output path: file or directory. Omitted: save to home (~) using -d domain or random ID. "
-        "Directory: auto-named file inside. File: use as-is (with --validate: stem_valid/stem_invalid).",
+        "Directory: auto-named file inside. File: use as-is (with --validate: stem_valid/stem_invalid/stem_inconclusive).",
     )
     parser.add_argument(
         "--data-root",
@@ -117,9 +123,13 @@ Quick examples:
     parser.add_argument(
         "-v",
         "--validate",
-        action="store_true",
-        help="SMTP-validate generated emails in real time. Requires -d/--domain. "
-        "Writes {basename}_valid.txt and {basename}_invalid.txt (see -o).",
+        nargs="*",
+        choices=["SMTP", "VRFY", "EXPN"],
+        metavar="METHOD",
+        help="Validate generated emails. Bare -v: SMTP (with STARTTLS). "
+        "With METHODs: only those listed (SMTP, VRFY, EXPN). Requires -d/--domain. "
+        "Examples: -v, -v SMTP, -v VRFY EXPN, -v SMTP VRFY. "
+        "Writes {basename}_valid.txt, {basename}_invalid.txt and {basename}_inconclusive.txt (see -o).",
     )
     parser.add_argument(
         "-w",
@@ -135,6 +145,23 @@ Quick examples:
         default=DEFAULT_SENDER,
         metavar="EMAIL",
         help="MAIL FROM address for SMTP validation (used with --validate).",
+    )
+    parser.add_argument(
+        "--helo",
+        type=str,
+        default=DEFAULT_HELO,
+        metavar="HOST",
+        help="EHLO/HELO hostname for SMTP validation (used with --validate).",
+    )
+    parser.add_argument(
+        "--mx",
+        action="store_true",
+        help="On RCPT 5xx, try next MX host before marking address invalid (used with --validate).",
+    )
+    parser.add_argument(
+        "--no-starttls",
+        action="store_true",
+        help="Do not upgrade SMTP session to TLS even if the server advertises STARTTLS (used with --validate).",
     )
 
     return parser
@@ -155,6 +182,7 @@ def _format_settings(
     output_path: Optional[str] = None,
     valid_path: Optional[str] = None,
     invalid_path: Optional[str] = None,
+    inconclusive_path: Optional[str] = None,
 ) -> str:
     lines = [
         "mask: " + args.mask,
@@ -165,19 +193,26 @@ def _format_settings(
         lines.append("domain: " + args.domain)
     if output_path:
         lines.append("output: " + output_path)
-    elif valid_path and invalid_path:
+    elif valid_path and invalid_path and inconclusive_path:
         lines.append("output valid: " + valid_path)
         lines.append("output invalid: " + invalid_path)
+        lines.append("output inconclusive: " + inconclusive_path)
     if args.letters:
         lines.append("letters: " + args.letters)
     if args.no_unique:
         lines.append("no-unique: true")
     if args.placeholder:
         lines.append("placeholder: " + " ".join(args.placeholder))
-    if args.validate:
-        lines.append("validate: true")
+    if args.validate is not None:
+        methods = normalize_validate_methods(args.validate)
+        lines.append("validate: " + ", ".join(sorted(methods)))
         lines.append("workers: " + str(args.workers))
         lines.append("sender: " + args.sender)
+        lines.append("helo: " + args.helo)
+        if args.mx:
+            lines.append("mx: true")
+        if args.no_starttls:
+            lines.append("starttls: false")
     return "\n".join(lines)
 
 
@@ -231,11 +266,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.validate and not args.domain:
+    if args.validate is not None and not args.domain:
         parser.error("--validate requires -d/--domain so generated addresses are full emails.")
 
-    if args.validate and args.verbose:
+    if args.validate is not None and args.verbose:
         parser.error("--validate and --verbose cannot be used together.")
+
+    if args.no_starttls and args.validate is None:
+        parser.error("--no-starttls requires --validate.")
 
     write_to_file = args.output is not None or not args.verbose
 
@@ -291,9 +329,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     resolved_output: Optional[Path] = None
     resolved_valid: Optional[Path] = None
     resolved_invalid: Optional[Path] = None
+    resolved_inconclusive: Optional[Path] = None
 
-    if args.validate:
-        resolved_valid, resolved_invalid = resolve_validate_outputs(args.output, args.domain)
+    validate_methods = None
+    if args.validate is not None:
+        validate_methods = normalize_validate_methods(args.validate)
+        resolved_valid, resolved_invalid, resolved_inconclusive = resolve_validate_outputs(
+            args.output, args.domain
+        )
     elif write_to_file:
         resolved_output = resolve_normal_output(args.output, args.domain)
 
@@ -308,38 +351,47 @@ def main(argv: Optional[list[str]] = None) -> int:
                 output_path=str(resolved_output) if resolved_output else None,
                 valid_path=str(resolved_valid) if resolved_valid else None,
                 invalid_path=str(resolved_invalid) if resolved_invalid else None,
+                inconclusive_path=str(resolved_inconclusive) if resolved_inconclusive else None,
             )
         )
         _log("")
 
-    if args.validate:
-        valid_path, invalid_path = resolved_valid, resolved_invalid
-        _log("Validating via SMTP...")
-        _log(f"Valid emails:   {valid_path}")
-        _log(f"Invalid emails: {invalid_path}")
+    if validate_methods is not None:
+        valid_path = resolved_valid
+        invalid_path = resolved_invalid
+        inconclusive_path = resolved_inconclusive
+        _log("Validating: " + ", ".join(sorted(validate_methods)))
+        _log(f"Valid emails:         {valid_path}")
+        _log(f"Invalid emails:       {invalid_path}")
+        _log(f"Inconclusive emails:  {inconclusive_path}")
         _log("")
 
         stats = validate_stream(
             generator,
             valid_path=valid_path,
             invalid_path=invalid_path,
+            inconclusive_path=inconclusive_path,
             workers=args.workers,
             sender=args.sender,
+            helo=args.helo,
+            try_all_mx=args.mx,
+            methods=validate_methods,
+            use_starttls=not args.no_starttls,
             print_valid=True,
         )
 
         _log("")
         _log("Validation complete.")
-        _log(f"Generated:  {stats['generated']}")
-        _log(f"Valid:      {stats['valid']}")
+        _log(f"Generated:     {stats['generated']}")
+        _log(f"Valid:         {stats['valid']}")
         if stats["invalid"]:
-            _log(f"Invalid:    {stats['invalid']}")
+            _log(f"Invalid:       {stats['invalid']}")
         if stats["catch_all"]:
-            _log(f"Catch-all:  {stats['catch_all']}")
-        if stats["greylisted"]:
-            _log(f"Greylisted: {stats['greylisted']}")
+            _log(f"Catch-all:     {stats['catch_all']}")
+        if stats["inconclusive"]:
+            _log(f"Inconclusive:  {stats['inconclusive']}")
         if stats["unknown"]:
-            _log(f"Unknown:    {stats['unknown']}")
+            _log(f"Unknown:       {stats['unknown']}")
         return 0
 
     if not verbose:

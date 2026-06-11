@@ -8,3 +8,8 @@ vendor
 
 # tests
 tests/
+
+# res
+*_invalid.*
+*_valid.*
+*_inconclusive.*

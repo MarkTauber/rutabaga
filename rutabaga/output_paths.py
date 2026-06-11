@@ -61,27 +61,28 @@ def resolve_normal_output(output: Optional[str], domain: Optional[str]) -> Path:
     return path / f"{basename}.txt"
 
 
-def _validate_pair_paths(base_path: Path) -> Tuple[Path, Path]:
+def _validate_output_paths(base_path: Path) -> Tuple[Path, Path, Path]:
     stem = base_path.stem
     suffix = base_path.suffix
     parent = base_path.parent
     return (
         parent / f"{stem}_valid{suffix}",
         parent / f"{stem}_invalid{suffix}",
+        parent / f"{stem}_inconclusive{suffix}",
     )
 
 
-def resolve_validate_outputs(output: Optional[str], domain: str) -> Tuple[Path, Path]:
+def resolve_validate_outputs(output: Optional[str], domain: str) -> Tuple[Path, Path, Path]:
     basename = default_basename(domain)
 
     if not output:
         base_dir = _default_output_dir()
         base_dir.mkdir(parents=True, exist_ok=True)
-        return _validate_pair_paths(base_dir / f"{basename}.txt")
+        return _validate_output_paths(base_dir / f"{basename}.txt")
 
     path = Path(output)
     if is_output_file_path(path):
-        return _validate_pair_paths(_ensure_parent_dir(path))
+        return _validate_output_paths(_ensure_parent_dir(path))
 
     path.mkdir(parents=True, exist_ok=True)
-    return _validate_pair_paths(path / f"{basename}.txt")
+    return _validate_output_paths(path / f"{basename}.txt")

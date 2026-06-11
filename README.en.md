@@ -8,23 +8,92 @@ Languages: [Русский](README.md) · [中文](README.zh.md)
 
 ## Quick start
 
+Validation dependency (DNS MX):
+
+```bash
+pip install dnspython
+```
+
 Standard generation:
+
 ```bash
 python main.py -m '$l.$s' -d corp.local -o logins.txt
 ```
 
-Generation with mail validation:
+Validate generated addresses (basic — SMTP RCPT):
+
 ```bash
-python main.py -m '$l.$s' -d corp.local -o logins.txt --validate -w 10 --sender check@access-workflow.com
+python main.py -m '$n.$s' -d corp.local -v -o ./out
 ```
 
-Without `-V`, the console shows a banner, settings, and status; logins are written to the output file. With `-V`, logins go to stdout. Without `-o`, output goes to the home directory (`~/`), named from `-d` or a random ID.
+Extended validation (explicit MAIL FROM / EHLO, MX fallback):
 
-`-o` accepts a **file** or **directory** (same in normal mode and with `--validate`):
-- directory → auto-named file inside (`corp.local.txt`, or `corp.local_valid.txt` / `corp.local_invalid.txt`);
-- file → used as-is (with `--validate` → `name_valid.txt` and `name_invalid.txt` alongside).
+```bash
+python main.py -m '$n.$s' -d corp.local -v -o ./out \
+  -w 10 --sender check@example.com --helo mx.example.com --mx
+```
 
-With `-v` / `--validate`, rutabaga generates addresses and checks them via SMTP (`-d` required). Only valid emails go to stdout; status goes to stderr.
+Without `-V`, the console shows a banner, settings, and status; logins are written to the output file. With `-V`, logins go to stdout. **`-v` and `-V` cannot be used together.** Without `-o`, output goes to the home directory (`~/`), named from `-d` or a random ID.
+
+`-o` accepts a **file** or **directory** (same in normal mode and with `-v`):
+- directory → auto-named file (`corp.local.txt`, or with `-v`: `corp.local_valid.txt`, `corp.local_invalid.txt`, `corp.local_inconclusive.txt`);
+- file → used as-is (with `-v` → `name_valid.txt`, `name_invalid.txt`, `name_inconclusive.txt` alongside).
+
+---
+
+## Email validation
+
+With **`-v`** / **`--validate`**, rutabaga generates addresses and checks mailbox existence (`-d` required). Confirmed addresses are also printed to stdout; full status log goes to stderr.
+
+### Methods `-v [METHOD …]`
+
+| Invocation | Methods | Behavior |
+|------------|---------|----------|
+| `-v` | SMTP | RCPT TO + catch-all probe |
+| `-v SMTP` | SMTP | same |
+| `-v VRFY` | VRFY | `VRFY` only (no RCPT) |
+| `-v VRFY EXPN` | VRFY, EXPN | listed methods only; SMTP is not added |
+| `-v SMTP VRFY` | SMTP, VRFY | RCPT, then `VRFY` on the same MX if RCPT fails |
+
+Per MX: **EHLO** → (**STARTTLS** unless disabled) → methods in order within one session.
+
+Default **`--sender`** and **`--helo`** are placeholders; set them explicitly for real MX hosts.
+
+### STARTTLS
+
+- By default: if the MX advertises `STARTTLS` after EHLO, the session is upgraded to TLS.
+- **`--no-starttls`** — plain SMTP (only with `-v`).
+
+### Validation flags
+
+| Flag | Purpose |
+|------|---------|
+| **`--mx`** | On RCPT 5xx, try the next MX host (SMTP method only) |
+| **`--sender`** | `MAIL FROM` address |
+| **`--helo`** | Hostname for `EHLO`/`HELO` |
+| **`-w`** | Worker threads (default 15) |
+
+### Output files
+
+| File | Contents |
+|------|----------|
+| `*_valid.txt` | Confirmed addresses (one per line) |
+| `*_invalid.txt` | TSV: `email`, `status`, `reason` |
+| `*_inconclusive.txt` | TSV; SMTP codes 252, 421, 450–452 |
+
+### Statuses
+
+| Status | File | Meaning |
+|--------|------|---------|
+| confirmed | `valid` | Mailbox likely exists |
+| `INVALID` | `invalid` | Explicit server rejection |
+| `CATCH_ALL` | `invalid` | Domain accepts any address |
+| `INCONCLUSIVE` | `inconclusive` | Cannot assert exists / not exists |
+| `UNKNOWN` | `invalid` | All MX hosts unreachable |
+
+### Limitations
+
+RCPT and VRFY from external IPs are unreliable for large providers (Gmail, Outlook, etc.); corporate MX hosts work better. **VRFY** and **EXPN** are disabled on most servers.
 
 ---
 
@@ -65,9 +134,12 @@ On PowerShell use **single quotes**: `-m '$n.$s_$l'`.
 | **`-p`**, **`--placeholder`** | Custom placeholder: `letter=path` (repeatable). |
 | **`--no-unique`** | Do not deduplicate across data sets. |
 | **`-V`**, **`--verbose`** | Print logins to console (otherwise only banner and status). |
-| **`-v`**, **`--validate`** | SMTP-validate generated addresses (requires `-d`). |
-| **`-w`**, **`--workers`** | Validation worker threads (default 15, with `--validate`). |
-| **`--sender`** | MAIL FROM address for SMTP checks (with `--validate`). |
+| **`-v`**, **`--validate`** [METHOD…] | Validate addresses (requires `-d`). No METHOD: `SMTP` (STARTTLS). With METHOD: only listed — `SMTP`, `VRFY`, `EXPN`. |
+| **`-w`**, **`--workers`** | Validation worker threads (default 15, with `-v`). |
+| **`--sender`** | MAIL FROM address for SMTP checks (with `-v`). |
+| **`--helo`** | EHLO/HELO hostname for SMTP checks (with `-v`). |
+| **`--mx`** | On RCPT 5xx, try next MX host (with `-v`, SMTP method only). |
+| **`--no-starttls`** | Do not upgrade to TLS even if the server advertises STARTTLS (with `-v`). |
 
 Full list: `python main.py -h`.
 
@@ -83,8 +155,12 @@ Full list: `python main.py -h`.
 | Female only, GOST R 7.0.34 data | `python main.py -m '$n_$s' -d mail.ru --data-root rutabaga/data_gost_7034 -s f -o out.txt` |
 | Few combinations (letters 0 and 1) | `python main.py -m '$n.$s_$l' -L 01 -o out.txt` |
 | Logins to console (and to file) | `python main.py -m '$n.$s' -d corp.local -o out.txt -V` |
-| Generation + SMTP validation (directory) | `python main.py -m '$n.$s' -d corp.local -v -o ./results` |
-| SMTP validation (explicit file) | `python main.py -m '$n.$s' -d corp.local -v -o emails.txt` |
+| Generation + validation (directory) | `python main.py -m '$n.$s' -d corp.local -v -o ./results` |
+| Validation (explicit base file) | `python main.py -m '$n.$s' -d corp.local -v -o emails.txt` |
+| VRFY + EXPN without RCPT | `python main.py -m '$n.$s' -d corp.local -v VRFY EXPN -o ./out` |
+| SMTP + VRFY | `python main.py -m '$n.$s' -d corp.local -v SMTP VRFY -o ./out` |
+| Without STARTTLS | `python main.py -m '$n.$s' -d corp.local -v --no-starttls -o ./out` |
+| Try next MX on RCPT 5xx | `python main.py -m '$n.$s' -d corp.local -v --mx -o ./out` |
 
 ---
 
@@ -103,7 +179,3 @@ You can set a custom directory: **`--data-root /path/to/folder`**.
 - **`rutabaga/data_gost_7034/`** — same as `data_gost` plus **GOST R 7.0.34-2014** variants (й→I: Andrei, Sergei, -evich/-evna, etc.). Use: `--data-root rutabaga/data_gost_7034`.
 
 The `data_gost` and `data_gost_7034` sets are shipped as-is; this repo does not include separate rebuild scripts.
-
----
-
-Languages: [Русский](README.md) · [中文](README.zh.md)
