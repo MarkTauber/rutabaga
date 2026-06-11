@@ -1,0 +1,10 @@
+# env
+node_modules/
+venv/
+env/
+__pycache__/
+*.pyc
+vendor
+
+# tests
+tests/

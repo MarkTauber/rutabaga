@@ -10,6 +10,8 @@ from typing import Dict, List, Optional
 from .mask import parse_mask, MaskError, PlaceholderToken, RESERVED_PLACEHOLDERS
 from .data_loader import load_data
 from .generator import generate_logins
+from .output_paths import resolve_normal_output, resolve_validate_outputs
+from .validate import DEFAULT_SENDER, DEFAULT_WORKERS, validate_stream
 
 
 ASCII_BANNER = textwrap.dedent(
@@ -82,7 +84,8 @@ Quick examples:
         type=str,
         required=False,
         metavar="PATH",
-        help="Output file path (required without -v). With -v, optional; logins go to stdout.",
+        help="Output path: file or directory. Omitted: save to home (~) using -d domain or random ID. "
+        "Directory: auto-named file inside. File: use as-is (with --validate: stem_valid/stem_invalid).",
     )
     parser.add_argument(
         "--data-root",
@@ -106,10 +109,32 @@ Quick examples:
         help="Do not filter duplicates between different data sets.",
     )
     parser.add_argument(
-        "-v",
+        "-V",
         "--verbose",
         action="store_true",
         help="Print generated logins to stdout. By default only banner, settings and status are shown.",
+    )
+    parser.add_argument(
+        "-v",
+        "--validate",
+        action="store_true",
+        help="SMTP-validate generated emails in real time. Requires -d/--domain. "
+        "Writes {basename}_valid.txt and {basename}_invalid.txt (see -o).",
+    )
+    parser.add_argument(
+        "-w",
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        metavar="N",
+        help=f"Validation worker threads (default {DEFAULT_WORKERS}, used with --validate).",
+    )
+    parser.add_argument(
+        "--sender",
+        type=str,
+        default=DEFAULT_SENDER,
+        metavar="EMAIL",
+        help="MAIL FROM address for SMTP validation (used with --validate).",
     )
 
     return parser
@@ -123,7 +148,14 @@ def _log(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
-def _format_settings(args: argparse.Namespace, data_root: Path) -> str:
+def _format_settings(
+    args: argparse.Namespace,
+    data_root: Path,
+    *,
+    output_path: Optional[str] = None,
+    valid_path: Optional[str] = None,
+    invalid_path: Optional[str] = None,
+) -> str:
     lines = [
         "mask: " + args.mask,
         "sex: " + args.sex,
@@ -131,14 +163,21 @@ def _format_settings(args: argparse.Namespace, data_root: Path) -> str:
     ]
     if args.domain:
         lines.append("domain: " + args.domain)
-    if args.output:
-        lines.append("output: " + args.output)
+    if output_path:
+        lines.append("output: " + output_path)
+    elif valid_path and invalid_path:
+        lines.append("output valid: " + valid_path)
+        lines.append("output invalid: " + invalid_path)
     if args.letters:
         lines.append("letters: " + args.letters)
     if args.no_unique:
         lines.append("no-unique: true")
     if args.placeholder:
         lines.append("placeholder: " + " ".join(args.placeholder))
+    if args.validate:
+        lines.append("validate: true")
+        lines.append("workers: " + str(args.workers))
+        lines.append("sender: " + args.sender)
     return "\n".join(lines)
 
 
@@ -192,10 +231,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if not args.verbose and not args.output:
-        parser.error(
-            "Output file is required when -v is not set. Use -o PATH or -v to print to stdout."
-        )
+    if args.validate and not args.domain:
+        parser.error("--validate requires -d/--domain so generated addresses are full emails.")
+
+    if args.validate and args.verbose:
+        parser.error("--validate and --verbose cannot be used together.")
+
+    write_to_file = args.output is not None or not args.verbose
 
     try:
         tokens = parse_mask(args.mask)
@@ -245,18 +287,68 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
 
     verbose = args.verbose
+
+    resolved_output: Optional[Path] = None
+    resolved_valid: Optional[Path] = None
+    resolved_invalid: Optional[Path] = None
+
+    if args.validate:
+        resolved_valid, resolved_invalid = resolve_validate_outputs(args.output, args.domain)
+    elif write_to_file:
+        resolved_output = resolve_normal_output(args.output, args.domain)
+
     if not verbose:
         _log(ASCII_BANNER.rstrip())
         _log("")
         _log("Settings:")
-        _log(_format_settings(args, data_root))
+        _log(
+            _format_settings(
+                args,
+                data_root,
+                output_path=str(resolved_output) if resolved_output else None,
+                valid_path=str(resolved_valid) if resolved_valid else None,
+                invalid_path=str(resolved_invalid) if resolved_invalid else None,
+            )
+        )
         _log("")
+
+    if args.validate:
+        valid_path, invalid_path = resolved_valid, resolved_invalid
+        _log("Validating via SMTP...")
+        _log(f"Valid emails:   {valid_path}")
+        _log(f"Invalid emails: {invalid_path}")
+        _log("")
+
+        stats = validate_stream(
+            generator,
+            valid_path=valid_path,
+            invalid_path=invalid_path,
+            workers=args.workers,
+            sender=args.sender,
+            print_valid=True,
+        )
+
+        _log("")
+        _log("Validation complete.")
+        _log(f"Generated:  {stats['generated']}")
+        _log(f"Valid:      {stats['valid']}")
+        if stats["invalid"]:
+            _log(f"Invalid:    {stats['invalid']}")
+        if stats["catch_all"]:
+            _log(f"Catch-all:  {stats['catch_all']}")
+        if stats["greylisted"]:
+            _log(f"Greylisted: {stats['greylisted']}")
+        if stats["unknown"]:
+            _log(f"Unknown:    {stats['unknown']}")
+        return 0
+
+    if not verbose:
         _log("Generating...")
 
     out_file_handle = None
     try:
-        if args.output:
-            out_file_handle = open(args.output, "w", encoding="utf-8")
+        if write_to_file and resolved_output:
+            out_file_handle = open(resolved_output, "w", encoding="utf-8")
 
         count = 0
         for login in generator:

@@ -8,11 +8,23 @@ Languages: [Русский](README.md) · [中文](README.zh.md)
 
 ## Quick start
 
+Standard generation:
 ```bash
-python main.py -m '$n.$s' -d corp.local -o logins.txt
+python main.py -m '$l.$s' -d corp.local -o logins.txt
 ```
 
-Without `-v`, the console shows a banner, settings, and status; logins are written to the output file. With `-v`, logins go to stdout. Without `-o` (and without `-v`), the program exits with an error.
+Generation with mail validation:
+```bash
+python main.py -m '$l.$s' -d corp.local -o logins.txt --validate -w 10 --sender check@access-workflow.com
+```
+
+Without `-V`, the console shows a banner, settings, and status; logins are written to the output file. With `-V`, logins go to stdout. Without `-o`, output goes to the home directory (`~/`), named from `-d` or a random ID.
+
+`-o` accepts a **file** or **directory** (same in normal mode and with `--validate`):
+- directory → auto-named file inside (`corp.local.txt`, or `corp.local_valid.txt` / `corp.local_invalid.txt`);
+- file → used as-is (with `--validate` → `name_valid.txt` and `name_invalid.txt` alongside).
+
+With `-v` / `--validate`, rutabaga generates addresses and checks them via SMTP (`-d` required). Only valid emails go to stdout; status goes to stderr.
 
 ---
 
@@ -45,14 +57,17 @@ On PowerShell use **single quotes**: `-m '$n.$s_$l'`.
 | Option | Description |
 |--------|-------------|
 | **`-m`**, **`--mask`** | Mask template (required). |
-| **`-o`**, **`--output`** | Output file. **Required** without `-v`. Optional with `-v` (stdout). |
+| **`-o`**, **`--output`** | Output path: file or directory. Omitted: save to `~/` with auto name from `-d` or random ID. |
 | **`-d`**, **`--domain`** | Domain (e.g. `corp.local` → appended as `@corp.local`). |
 | **`-s`**, **`--sex`** | `m` / `f` / `both` (default `both`). |
 | **`--data-root`** | Directory with data files. Default: `rutabaga/data`. |
 | **`-L`**, **`--letters`** | Alphabet for `$l` (default a–z). |
 | **`-p`**, **`--placeholder`** | Custom placeholder: `letter=path` (repeatable). |
 | **`--no-unique`** | Do not deduplicate across data sets. |
-| **`-v`**, **`--verbose`** | Print logins to console (otherwise only banner and status). |
+| **`-V`**, **`--verbose`** | Print logins to console (otherwise only banner and status). |
+| **`-v`**, **`--validate`** | SMTP-validate generated addresses (requires `-d`). |
+| **`-w`**, **`--workers`** | Validation worker threads (default 15, with `--validate`). |
+| **`--sender`** | MAIL FROM address for SMTP checks (with `--validate`). |
 
 Full list: `python main.py -h`.
 
@@ -62,11 +77,14 @@ Full list: `python main.py -h`.
 
 | Task | Command |
 |------|--------|
+| Logins to `~/corp.local.txt` (no `-o`) | `python main.py -m '$n.$s' -d corp.local` |
 | Logins to file (firstname.surname@domain) | `python main.py -m '$n.$s' -d corp.local -o logins.txt` |
 | Male only, GOST 7.79 data | `python main.py -m '$n.$s_$l' -d example.com --data-root rutabaga/data_gost -s m -o out.txt` |
 | Female only, GOST R 7.0.34 data | `python main.py -m '$n_$s' -d mail.ru --data-root rutabaga/data_gost_7034 -s f -o out.txt` |
 | Few combinations (letters 0 and 1) | `python main.py -m '$n.$s_$l' -L 01 -o out.txt` |
-| Logins to console (and to file) | `python main.py -m '$n.$s' -d corp.local -o out.txt -v` |
+| Logins to console (and to file) | `python main.py -m '$n.$s' -d corp.local -o out.txt -V` |
+| Generation + SMTP validation (directory) | `python main.py -m '$n.$s' -d corp.local -v -o ./results` |
+| SMTP validation (explicit file) | `python main.py -m '$n.$s' -d corp.local -v -o emails.txt` |
 
 ---
 

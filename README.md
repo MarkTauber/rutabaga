@@ -8,11 +8,23 @@
 
 ## Быстрый старт
 
+Стандартная генерация:
 ```bash
-python main.py -m '$n.$s' -d corp.local -o logins.txt
+python main.py -m '$l.$s' -d corp.local -o logins.txt
 ```
 
-Без `-v` в консоль выводятся баннер, настройки и статус; логины пишутся в файл. С `-v` логины идут в stdout. Без `-o` (и без `-v`) запуск завершится с ошибкой.
+Валидация сгенерированных почтовых адресов:
+```bash
+python main.py -m '$l.$s' -d corp.local -o logins.txt --validate -w 10 --sender check@access-workflow.com
+```
+
+Без `-V` в консоль выводятся баннер, настройки и статус; логины пишутся в файл. С `-V` логины идут в stdout. Без `-o` файл сохраняется в домашний каталог (`~/`), имя — по `-d` или случайный ID.
+
+Флаг `-o` принимает **файл** или **каталог** (одинаково в обычном режиме и с `--validate`):
+- каталог → внутри создаётся файл с автоименем (`corp.local.txt` или `corp.local_valid.txt` / `corp.local_invalid.txt`);
+- файл → используется как есть (с `--validate` — `имя_valid.txt` и `имя_invalid.txt` рядом).
+
+С `-v` / `--validate` rutabaga генерирует адреса и сразу проверяет их по SMTP (нужен `-d`). В stdout попадают только валидные почты; полный лог — в stderr.
 
 ---
 
@@ -45,14 +57,17 @@ python main.py -m '$n.$s' -d corp.local -o logins.txt
 | Параметр | Описание |
 |----------|----------|
 | **`-m`**, **`--mask`** | Маска (обязательно). |
-| **`-o`**, **`--output`** | Файл вывода. Без `-v` **обязателен**. С `-v` необязателен (вывод в stdout). |
+| **`-o`**, **`--output`** | Путь вывода: файл или каталог. Без `-o` — `~/` с автоименем по `-d` или случайному ID. |
 | **`-d`**, **`--domain`** | Домен (например `corp.local` → подставится как `@corp.local`). |
 | **`-s`**, **`--sex`** | `m` / `f` / `both` (по умолчанию `both`). |
 | **`--data-root`** | Папка с файлами данных. По умолчанию `rutabaga/data`. |
 | **`-L`**, **`--letters`** | Алфавит для `$l` (по умолчанию a–z). |
 | **`-p`**, **`--placeholder`** | Кастомный плейсхолдер: `letter=path` (можно повторять). |
 | **`--no-unique`** | Не убирать дубликаты между наборами. |
-| **`-v`**, **`--verbose`** | Выводить логины в консоль (иначе только баннер и статус). |
+| **`-V`**, **`--verbose`** | Выводить логины в консоль (иначе только баннер и статус). |
+| **`-v`**, **`--validate`** | SMTP-валидация сгенерированных адресов (требует `-d`). |
+| **`-w`**, **`--workers`** | Потоки валидации (по умолчанию 15, только с `--validate`). |
+| **`--sender`** | Адрес MAIL FROM для SMTP-проверки (только с `--validate`). |
 
 Полный список: `python main.py -h`.
 
@@ -62,11 +77,14 @@ python main.py -m '$n.$s' -d corp.local -o logins.txt
 
 | Задача | Команда |
 |--------|--------|
+| Логины в `~/corp.local.txt` (без `-o`) | `python main.py -m '$n.$s' -d corp.local` |
 | Логины в файл (имя.фамилия@домен) | `python main.py -m '$n.$s' -d corp.local -o logins.txt` |
 | Только мужские, данные по ГОСТ 7.79 | `python main.py -m '$n.$s_$l' -d example.com --data-root rutabaga/data_gost -s m -o out.txt` |
 | Только женские, ГОСТ Р 7.0.34 | `python main.py -m '$n_$s' -d mail.ru --data-root rutabaga/data_gost_7034 -s f -o out.txt` |
 | Мало комбинаций (алфавит 0 и 1) | `python main.py -m '$n.$s_$l' -L 01 -o out.txt` |
-| Логины в консоль (и в файл) | `python main.py -m '$n.$s' -d corp.local -o out.txt -v` |
+| Логины в консоль (и в файл) | `python main.py -m '$n.$s' -d corp.local -o out.txt -V` |
+| Генерация + SMTP-валидация (каталог) | `python main.py -m '$n.$s' -d corp.local -v -o ./results` |
+| SMTP-валидация (явный файл) | `python main.py -m '$n.$s' -d corp.local -v -o emails.txt` |
 
 ---
 
