@@ -20,7 +20,7 @@ ASCII_BANNER = textwrap.dedent(
   |__) |  |  |   /\\  |__)  /\\  / _`  /\\   (     )
   |  \\ \\__/  |  /~~\\ |__) /~~\\ \\__> /~~\\   '-,-'
   
-  Flexible login and email generator (RUTABAGA).
+  Flexible login and email generator and validation (RUTABAGA).
 """
 )
 
