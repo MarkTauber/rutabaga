@@ -11,7 +11,7 @@ from typing import Dict, Iterator, Optional, TextIO, Tuple
 
 import dns.resolver
 
-DEFAULT_SENDER = "validator@your-controlled-domain.com"
+DEFAULT_SENDER = "validator@your-controlled-domain.com" # Оставлю как есть
 DEFAULT_HELO = "your-controlled-domain.com"
 TIMEOUT = 8
 DEFAULT_WORKERS = 15
@@ -37,11 +37,19 @@ def check_email(
     try:
         _, domain = email.split("@", 1)
     except ValueError:
-        return {"email": email, "status": "INVALID", "reason": "Некорректный формат"}
+        return {
+            "email": email, 
+            "status": "INVALID", 
+            "reason": "Некорректный формат"
+            }
 
     mx_records = get_mx_records(domain)
     if not mx_records:
-        return {"email": email, "status": "INVALID", "reason": "Отсутствуют MX записи"}
+        return {
+            "email": email, 
+            "status": "INVALID", 
+            "reason": "Отсутствуют MX записи"
+            }
 
     random_local = "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
     random_email = f"{random_local}@{domain}"
@@ -67,7 +75,12 @@ def check_email(
                             "status": "CATCH_ALL",
                             "reason": "Домен принимает всё",
                         }
-                    return {"email": email, "status": VALID_STATUS, "reason": "Существует"}
+
+                    return {
+                        "email": email, 
+                        "status": VALID_STATUS, 
+                        "reason": "Существует"
+                        }
 
                 if code_target in (450, 451, 452):
                     return {
@@ -88,7 +101,11 @@ def check_email(
         except Exception:
             continue
 
-    return {"email": email, "status": "UNKNOWN", "reason": "Все MX недоступны"}
+    return {
+        "email": email, 
+        "status": "UNKNOWN", 
+        "reason": "Все MX недоступны"
+        }
 
 
 def _write_result(
@@ -98,6 +115,7 @@ def _write_result(
     *,
     print_valid: bool,
 ) -> bool:
+
     email = result["email"]
     is_valid = result["status"] == VALID_STATUS
 
@@ -123,6 +141,7 @@ def validate_stream(
     helo: str = DEFAULT_HELO,
     print_valid: bool = True,
 ) -> Dict[str, int]:
+
     stats = {
         "generated": 0,
         "valid": 0,
@@ -131,6 +150,7 @@ def validate_stream(
         "greylisted": 0,
         "unknown": 0,
     }
+    
     max_inflight = max(workers * MAX_INFLIGHT_MULTIPLIER, workers)
 
     with open(valid_path, "w", encoding="utf-8") as valid_file, open(
@@ -142,13 +162,16 @@ def validate_stream(
             pending: Dict[concurrent.futures.Future, str] = {}
 
             def drain_completed(block: bool = False) -> None:
+
                 if not pending:
                     return
+
                 iterator = (
                     concurrent.futures.as_completed(pending)
                     if block
                     else _take_first_completed(pending)
                 )
+
                 for future in iterator:
                     pending.pop(future, None)
                     result = future.result()
@@ -174,7 +197,14 @@ def validate_stream(
 
             for email in emails:
                 stats["generated"] += 1
-                future = executor.submit(check_email, email, sender=sender, helo=helo)
+                
+                future = executor.submit(
+                    check_email, 
+                    email, 
+                    sender=sender, 
+                    helo=helo
+                    )
+
                 pending[future] = email
 
                 if len(pending) >= max_inflight:
@@ -185,11 +215,6 @@ def validate_stream(
     return stats
 
 
-def _take_first_completed(
-    pending: Dict[concurrent.futures.Future, str],
-) -> Iterator[concurrent.futures.Future]:
-    done, _ = concurrent.futures.wait(
-        pending.keys(),
-        return_when=concurrent.futures.FIRST_COMPLETED,
-    )
+def _take_first_completed(pending: Dict[concurrent.futures.Future, str],) -> Iterator[concurrent.futures.Future]:
+    done, _ = concurrent.futures.wait(pending.keys(),return_when=concurrent.futures.FIRST_COMPLETED,)
     yield from done

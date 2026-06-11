@@ -5,7 +5,15 @@ import secrets
 from pathlib import Path
 from typing import Optional, Tuple
 
-FILE_EXTENSIONS = frozenset({".txt", ".csv", ".log", ".out", ".lst"})
+FILE_EXTENSIONS = frozenset(
+    {
+        ".txt", 
+        ".csv", 
+        ".log", 
+        ".out", 
+        ".lst"
+    }
+)
 
 
 def sanitize_domain_for_filename(domain: str) -> str:
